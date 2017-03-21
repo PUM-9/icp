@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
   viewer.addPointCloud(cloud);
 
   Eigen::Affine3f transform (Eigen::Affine3f::Identity());
-  Eigen::Matrix3f rotation (Eigen::AngleAxisf((60.0*M_PI) / 180, Eigen::Vector3f::UnitZ()));
+  Eigen::Matrix3f rotation (Eigen::AngleAxisf((90.0*M_PI) / 180, Eigen::Vector3f::UnitZ()));
   transform.rotate(rotation);
   pcl::transformPointCloud(*cloud, *cloud_tf_1, transform);
   std::cout << transform.matrix() << std::endl << std::endl;
