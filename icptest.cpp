@@ -48,13 +48,13 @@ int
 
         icp.setInputSource(cloudOut);
         icp.setInputTarget(cloudIn);
-        icp.setMaximumIterations(20);
-        icp.setTransformationEpsilon(1e-9);
-        icp.setMaxCorrespondenceDistance(2);
+        icp.setMaximumIterations(25);
+        icp.setTransformationEpsilon(1e-8);
+        icp.setMaxCorrespondenceDistance(0.05);
         icp.setEuclideanFitnessEpsilon(1);
-        icp.setRANSACOutlierRejectionThreshold(0.125);
+        icp.setRANSACOutlierRejectionThreshold(1);
 
-        icp.align(finalCloud);
+        icp.align(*cloudOut);
 
         if (icp.hasConverged())
         {
@@ -69,6 +69,8 @@ int
         std::cout<<"trans %n"<<transformationMatrix<<std::endl;
 
         pcl::transformPointCloud( *cloudOut, *cloudOut_new, transformationMatrix);
+
+        finalCloud = *cloudIn + *cloudOut;
 
         pcl::io::savePCDFileASCII ("cuberesult.pcd", finalCloud);
     //}
