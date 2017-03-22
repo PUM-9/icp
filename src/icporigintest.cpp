@@ -40,9 +40,19 @@ int main(int argc, char *argv[])
   pcl::transformPointCloud(*cloud, *cloud_tf_2, transform);
   std::cout << transform.matrix() << std::endl << std::endl;
 
+    // White PC
+    pcl::io::savePCDFileASCII ("cloud.pcd", *cloud);
+    std::cout << "cloud saved to file cloud.pcd" << std::endl;
+
+    // Green PC
+    pcl::io::savePCDFileASCII ("cloudtf1.pcd", *cloud_tf_1);
+    std::cout << "cloudtf1 saved to file cloudtf1.pcd" << std::endl;
   pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_tf_1_color_handler (cloud_tf_1, 25, 200, 25);
   viewer.addPointCloud (cloud_tf_1, cloud_tf_1_color_handler, "cloud_tf_1");
 
+    // Red PC
+    pcl::io::savePCDFileASCII ("cloudtf2.pcd", *cloud_tf_2);
+    std::cout << "cloudtf2 saved to file cloudtf2.pcd" << std::endl;
   pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_tf_2_color_handler (cloud_tf_2, 200, 25, 25);
   viewer.addPointCloud (cloud_tf_2, cloud_tf_2_color_handler, "cloud_tf_2");
   viewer.spin();
