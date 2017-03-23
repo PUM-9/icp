@@ -9,7 +9,7 @@ int
  main (int argc, char** argv)
 {
 
-     for (int i = 0; i < 9; i++) {
+     for (int i = 0; i < 0; i++) {
 
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudIn (new pcl::PointCloud<pcl::PointXYZI>);
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudOut (new pcl::PointCloud<pcl::PointXYZI>);

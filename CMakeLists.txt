@@ -142,6 +142,8 @@ add_executable(icporigintest src/icporigintest.cpp)
 
 add_executable(icptest src/icptest.cpp)
 
+add_executable(filter src/filter.cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -158,6 +160,10 @@ target_link_libraries(icporigintest
 )
 
 target_link_libraries(icptest
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(filter
   ${catkin_LIBRARIES}
 )
 

@@ -63,7 +63,7 @@ int main (int argc, char** argv)
         outlier_filter.filter(*cloud_filtered);
 
         std::cout << "Saving filtered cloud" << std::endl;
-        pcl::io::savePCDFile(argv[1], *cloud_filtered);
+        pcl::io::savePCDFile(argv[2], *cloud_filtered);
     //}
 
     return (0);
