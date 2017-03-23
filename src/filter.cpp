@@ -15,22 +15,22 @@ int main (int argc, char** argv)
 {
     std::cout << "Loading files" << std::endl;
 
-    for (int i = 0; i < 10; i++) {
+    //for (int i = 0; i < 10; i++) {
 
         // Load input file into a PointCloud<T> with an appropriate type
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
-        std::stringstream ss;
-        if(i < 10) {
-            ss << "cube000" << i << ".pcd";
-        } else {
-            ss << "cube00" << i << ".pcd";
-        }
+        //std::stringstream ss;
+        //if(i < 10) {
+        //    ss << "cube000" << i << ".pcd";
+        //} else {
+        //    ss << "cube00" << i << ".pcd";
+        //}
 
         pcl::PCLPointCloud2 cloud_blob;
 
-        if (pcl::io::loadPCDFile (ss.str(), cloud_blob) == -1) {
-            std::cout << "Couldn't read file " << ss.str() << std::endl;
+        if (pcl::io::loadPCDFile (argv[1], cloud_blob) == -1) {
+            std::cout << "Couldn't read file " << argv[1] << std::endl;
         }
 
         pcl::fromPCLPointCloud2 (cloud_blob, *cloud);
@@ -63,8 +63,8 @@ int main (int argc, char** argv)
         outlier_filter.filter(*cloud_filtered);
 
         std::cout << "Saving filtered cloud" << std::endl;
-        pcl::io::savePCDFile(ss.str(), *cloud_filtered);
-    }
+        pcl::io::savePCDFile(argv[1], *cloud_filtered);
+    //}
 
     return (0);
 }

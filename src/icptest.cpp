@@ -9,38 +9,45 @@ int
  main (int argc, char** argv)
 {
 
-    // for (int i = 0; i < 9; i++) {
+     for (int i = 0; i < 9; i++) {
 
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudIn (new pcl::PointCloud<pcl::PointXYZI>);
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudOut (new pcl::PointCloud<pcl::PointXYZI>);
         pcl::PointCloud<pcl::PointXYZI> finalCloud;
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudOut_new (new pcl::PointCloud<pcl::PointXYZI>) ;
 
-        //if(i == 0) {
+        if(i == 0) {
             if(pcl::io::loadPCDFile (argv[1], *cloudIn)==-1)
             {
-                std::cout << argv[0] << std::endl;
                 PCL_ERROR ("Couldn't read first file! \n");
                 return (-1);
             }
-        //} else {
-            //if(pcl::io::loadPCDFile ("cuberesult.pcd", *cloudIn)==-1)
-            //{
-               // PCL_ERROR ("Couldn't read result file! \n");
-              //  return (-1);
-           // }
-        //}
+        } else {
+            if(pcl::io::loadPCDFile ("cuberesult.pcd", *cloudIn)==-1)
+            {
+                PCL_ERROR ("Couldn't read result file! \n");
+                return (-1);
+            }
+        }
 
         //save aligned pair, transformed into the first cloud's frame
-        //std::stringstream ss;
-        //ss << "cube000" << i + 1 << ".pcd";
+        std::stringstream ss;
+        ss << "cube000" << i + 1 << ".pcd";
 
-        //std::cout << ss.str() << std::endl;
-        if(pcl::io::loadPCDFile (argv[2], *cloudOut)==-1)
-        {
-            PCL_ERROR ("Couldn't read second input file! \n");
-            return (-1);
-        }
+        std::cout << ss.str() << std::endl;
+         if(i == 0) {
+             if(pcl::io::loadPCDFile (argv[2], *cloudOut)==-1)
+             {
+                 PCL_ERROR ("Couldn't read first file! \n");
+                 return (-1);
+             }
+         } else {
+             if(pcl::io::loadPCDFile (ss.str(), *cloudOut)==-1)
+             {
+                 PCL_ERROR ("Couldn't read result file! \n");
+                 return (-1);
+             }
+         }
 
         pcl::IterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI> icp;
 
@@ -49,10 +56,10 @@ int
         icp.setInputSource(cloudOut);
         icp.setInputTarget(cloudIn);
         icp.setMaximumIterations(25);
-        icp.setTransformationEpsilon(1e-8);
-        icp.setMaxCorrespondenceDistance(0.05);
+        icp.setTransformationEpsilon(1e-7);
+        icp.setMaxCorrespondenceDistance(0.02);
         icp.setEuclideanFitnessEpsilon(1);
-        icp.setRANSACOutlierRejectionThreshold(1);
+        icp.setRANSACOutlierRejectionThreshold(0.5);
 
         icp.align(*cloudOut);
 
@@ -73,7 +80,7 @@ int
         finalCloud = *cloudIn + *cloudOut;
 
         pcl::io::savePCDFileASCII ("cuberesult.pcd", finalCloud);
-    //}
+    }
 
     return (0);
 }

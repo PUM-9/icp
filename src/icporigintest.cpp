@@ -4,8 +4,6 @@
 #include <pcl/common/transforms.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include <Eigen/Geometry>
-
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 
@@ -27,7 +25,10 @@ int main(int argc, char *argv[])
   viewer.addPointCloud(cloud);
 
   Eigen::Affine3f transform (Eigen::Affine3f::Identity());
-  Eigen::Matrix3f rotation (Eigen::AngleAxisf((90.0*M_PI) / 180, Eigen::Vector3f::UnitZ()));
+    // To change the rotation, first make a AngleAxis with the desired change of degrees and then specify the
+    // Axis with a unitvector. To change multiple axes at once, multiply the desired AngleAxises with eachother
+    long int deg = strtol(argv[2],NULL,10);
+  Eigen::Matrix3f rotation (Eigen::AngleAxisf((deg*M_PI) / 180, Eigen::Vector3f::UnitX()));
   transform.rotate(rotation);
   pcl::transformPointCloud(*cloud, *cloud_tf_1, transform);
   std::cout << transform.matrix() << std::endl << std::endl;
