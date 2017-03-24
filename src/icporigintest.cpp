@@ -21,19 +21,27 @@ int main(int argc, char *argv[])
     }
 
     pcl::visualization::PCLVisualizer viewer;
-    viewer.addCoordinateSystem(100);
-    viewer.addPointCloud(cloud);
+    viewer.addCoordinateSystem(15);
+    //viewer.addPointCloud(cloud);
 
     Eigen::Affine3f transform (Eigen::Affine3f::Identity());
     // To change the rotation, first make a AngleAxis with the desired change of degrees and then specify the
     // Axis with a unitvector. To change multiple axes at once, multiply the desired AngleAxises with eachother
     long int deg = strtol(argv[2],NULL,10);
-    Eigen::Matrix3f rotation (Eigen::AngleAxisf((deg*M_PI) / 180, Eigen::Vector3f::UnitX()));
-    transform.translation() << -515.0, -565.0, 280.0;
+
+    transform.translation() << -528.0, -351.0, 590.0;
     pcl::transformPointCloud(*cloud, *cloud, transform);
     transform.translation() << 0.0, 0.0, 0.0;
+
+    // Scale the point cloud
+    float scale = atof(argv[3]);
+    Eigen::Affine3f scale_transform(Eigen::Affine3f::Identity());
+    scale_transform.scale(Eigen::Vector3f(1, 1, scale));
+    pcl::transformPointCloud(*cloud, *cloud_tf_1, scale_transform);
+    
+    Eigen::Matrix3f rotation (Eigen::AngleAxisf((deg*M_PI) / 180, Eigen::Vector3f::UnitX()));
     transform.rotate(rotation);
-    pcl::transformPointCloud(*cloud, *cloud_tf_1, transform);
+    pcl::transformPointCloud(*cloud_tf_1, *cloud_tf_1, transform);
     std::cout << transform.matrix() << std::endl << std::endl;
 
     Eigen::Vector4f centroid (Eigen::Vector4f::Zero());

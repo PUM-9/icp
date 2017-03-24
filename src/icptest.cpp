@@ -9,7 +9,7 @@ int
  main (int argc, char** argv)
 {
 
-     for (int i = 0; i < 0; i++) {
+     for (int i = 0; i < 1; i++) {
 
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudIn (new pcl::PointCloud<pcl::PointXYZI>);
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloudOut (new pcl::PointCloud<pcl::PointXYZI>);
@@ -55,9 +55,9 @@ int
 
         icp.setInputSource(cloudOut);
         icp.setInputTarget(cloudIn);
-        icp.setMaximumIterations(25);
+        icp.setMaximumIterations(1000);
         icp.setTransformationEpsilon(1e-7);
-        icp.setMaxCorrespondenceDistance(0.02);
+        icp.setMaxCorrespondenceDistance(0.06);
         icp.setEuclideanFitnessEpsilon(1);
         icp.setRANSACOutlierRejectionThreshold(0.5);
 
