@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     // Axis with a unitvector. To change multiple axes at once, multiply the desired AngleAxises with eachother
     long int deg = strtol(argv[2],NULL,10);
 
-    transform.translation() << -528.0, -351.0, 590.0;
+    transform.translation() << -528.0, -346.0, 591.0;
     pcl::transformPointCloud(*cloud, *cloud, transform);
     transform.translation() << 0.0, 0.0, 0.0;
 
