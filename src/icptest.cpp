@@ -52,6 +52,7 @@ main(int argc, char **argv) {
 
     // Parameters for the ICP algorithm
 
+
     icp.setInputSource(transformed_cloud);
     icp.setInputTarget(cloudIn);
     icp.setMaximumIterations(25);
