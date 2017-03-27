@@ -44,10 +44,10 @@ struct Cuboid {
  */
 bool register_point_clouds_icp(Cuboid target, Rectangle source) {
 
-    CloudPtr SourceCloud = source.point_cloud_ptr;
-    CloudPtr TargetCloud = target.point_cloud_ptr;
-    CloudPtr TargetCloudNew(new Cloud);
-    CloudPtr FinalCloud(new Cloud);
+    CloudPtr source_cloud = source.point_cloud_ptr;
+    CloudPtr target_cloud = target.point_cloud_ptr;
+    CloudPtr target_cloud_new(new Cloud);
+    CloudPtr final_cloud(new Cloud);
 
 
     Eigen::Affine3f TransformRotate = Eigen::Affine3f::Identity();
@@ -59,7 +59,7 @@ bool register_point_clouds_icp(Cuboid target, Rectangle source) {
 
     // Executing the rotation
     CloudPtr transformed_cloud(new Cloud);
-    pcl::transformPointCloud(*TargetCloud, *transformed_cloud, TransformRotate);
+    pcl::transformPointCloud(*target_cloud, *transformed_cloud, TransformRotate);
 
     // Update target
     target.point_cloud_ptr = transformed_cloud;
@@ -77,15 +77,15 @@ bool register_point_clouds_icp(Cuboid target, Rectangle source) {
     pcl::IterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI> icp;
 
     // Parameters for the ICP algorithm
-    icp.setInputSource(SourceCloud);
-    icp.setInputTarget(TargetCloud);
+    icp.setInputSource(source_cloud);
+    icp.setInputTarget(target_cloud);
     icp.setMaximumIterations(25);
     icp.setTransformationEpsilon(1e-7);
     icp.setMaxCorrespondenceDistance(3);
     //icp.setEuclideanFitnessEpsilon(1);
     //icp.setRANSACOutlierRejectionThreshold(1);
 
-    icp.align(*TargetCloud);
+    icp.align(*target_cloud);
 
     if (icp.hasConverged()) {
         std::cout << "ICP converged." << std::endl
@@ -95,11 +95,11 @@ bool register_point_clouds_icp(Cuboid target, Rectangle source) {
         Eigen::Matrix4f transformationMatrix = icp.getFinalTransformation();
         std::cout << "trans %n" << transformationMatrix << std::endl;
 
-        pcl::transformPointCloud(*TargetCloud, *TargetCloudNew, transformationMatrix);
+        pcl::transformPointCloud(*target_cloud, *target_cloud_new, transformationMatrix);
 
-        FinalCloud = SourceCloud + TargetCloud;
+        final_cloud = source_cloud + target_cloud;
 
-        pcl::io::savePCDFileASCII("cuberesult3.pcd", *FinalCloud);
+        pcl::io::savePCDFileASCII("cuberesult3.pcd", *final_cloud);
         return true;
     }
 
@@ -108,11 +108,11 @@ bool register_point_clouds_icp(Cuboid target, Rectangle source) {
     Eigen::Matrix4f transformationMatrix = icp.getFinalTransformation();
     std::cout << "trans %n" << transformationMatrix << std::endl;
 
-    pcl::transformPointCloud(*TargetCloud, *TargetCloudNew, transformationMatrix);
+    pcl::transformPointCloud(*target_cloud, *target_cloud_new, transformationMatrix);
 
-    FinalCloud = SourceCloud + TargetCloud;
+    final_cloud = source_cloud + target_cloud;
 
-    pcl::io::savePCDFileASCII("cuberesult3.pcd", *FinalCloud);
+    pcl::io::savePCDFileASCII("cuberesult3.pcd", *final_cloud);
 
     return false;
 
@@ -121,30 +121,30 @@ bool register_point_clouds_icp(Cuboid target, Rectangle source) {
 int main(int argc, char **argv) {
 
     // Crerate target and source CloudPtr
-    CloudPtr TargetCloudRead(new Cloud);
-    CloudPtr SourceCloudRead(new Cloud);
+    CloudPtr target_cloud_read(new Cloud);
+    CloudPtr source_cloud_read(new Cloud);
 
     // Read Target pointcloud
-    if (pcl::io::loadPCDFile("cuberesult2.pcd", *TargetCloudRead) == -1) {
+    if (pcl::io::loadPCDFile("cuberesult2.pcd", *target_cloud_read) == -1) {
         std::cout << argv[0] << std::endl;
         PCL_ERROR ("Couldn't read first file! \n");
         return (-1);
     }
 
     // Read source pointcloud
-    if (pcl::io::loadPCDFile("halfcube190filtered.pcd", *SourceCloudRead) == -1) {
+    if (pcl::io::loadPCDFile("halfcube190filtered.pcd", *source_cloud_read) == -1) {
         PCL_ERROR ("Couldn't read second input file! \n");
         return (-1);
     }
 
     // Create Cuboid object
     Cuboid Target;
-    Target.point_cloud_ptr = TargetCloudRead;
+    Target.point_cloud_ptr = target_cloud_read;
     //find_cuboid_corners(Target);
 
     // Create Rectangle object
     Rectangle Source;
-    Source.point_cloud_ptr = SourceCloudRead;
+    Source.point_cloud_ptr = source_cloud_read;
     //find_rectangle_corner(Source);
 
     // Run registation functrion
