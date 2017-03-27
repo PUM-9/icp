@@ -57,9 +57,9 @@ int
         icp.setInputTarget(cloudIn);
         icp.setMaximumIterations(1000);
         icp.setTransformationEpsilon(1e-7);
-        icp.setMaxCorrespondenceDistance(0.06);
-        icp.setEuclideanFitnessEpsilon(1);
-        icp.setRANSACOutlierRejectionThreshold(0.5);
+        icp.setMaxCorrespondenceDistance(1);
+        icp.setEuclideanFitnessEpsilon(0.1);
+        icp.setRANSACOutlierRejectionThreshold(20);
 
         icp.align(*cloudOut);
 
