@@ -55,7 +55,7 @@ bool register_point_clouds_icp(Cuboid target, Rectangle source) {
 
     // Compute rotation
     float theta = source.pov - target.pov; // The angle of rotation in radians
-    TransformRotate.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitZ()));
+    TransformRotate.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
 
     // Executing the rotation
     CloudPtr transformed_cloud(new Cloud);
