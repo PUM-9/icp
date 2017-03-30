@@ -9,7 +9,6 @@ typedef pcl::PointCloud<PointT> PointCloudT;
 
 int main(int argc, char *argv[])
 {
-
     PointCloudT::Ptr cloud (new PointCloudT),
             cloud_tf_1 (new PointCloudT),
             cloud_tf_2 (new PointCloudT);
@@ -28,6 +27,7 @@ int main(int argc, char *argv[])
     // To change the rotation, first make a AngleAxis with the desired change of degrees and then specify the
     // Axis with a unitvector. To change multiple axes at once, multiply the desired AngleAxises with eachother
     long int deg = strtol(argv[2],NULL,10);
+
 
     transform.translation() << -528.0, -346.0, 591.0;
     pcl::transformPointCloud(*cloud, *cloud, transform);

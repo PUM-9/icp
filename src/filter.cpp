@@ -19,27 +19,162 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
-/**
-   This function filters a cloud by performing a few steps:
-   * It removes all noise data and outliers
-   * It scales the cloud to the correct proportions
-   * It makes sure the cloud has the correct rotation and position around origin
-   @param cloud_in The input cloud, taken directly from a TreeD scan.
-   @param cloud_out The filtered and scaled cloud is returned here.
-   @param rotation The rotation the scan was taken from (in degrees).
- */
-void
-filter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in,
-       pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out, int rotation)
+#include <pcl/common/common.h>
+#include <pcl/common/centroid.h>
+#include <pcl/registration/icp.h>
+#include <pcl/registration/gicp.h>
+
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+
+bool remove_stick(PointCloud::ConstPtr cloud_in, PointCloud::Ptr cloud_out)
+{
+    // Create the KdTree object for the search method of the extraction
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr search_tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    search_tree->setInputCloud(cloud_in);
+
+    // Create the object for extracting cluster in cloud_in
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<pcl::PointXYZ> cluster_extraction;
+    cluster_extraction.setInputCloud(cloud_in);
+
+    // Set the maximum distance between two points in a cluster to 4 mm
+    cluster_extraction.setClusterTolerance(4.0);
+
+    // Set a cluster to be between 10 and 25000 points
+    cluster_extraction.setMinClusterSize(10);
+    cluster_extraction.setMaxClusterSize(25000);
+
+    // Perform the euclidean cluster extraction algorithm
+    cluster_extraction.setSearchMethod(search_tree);
+    cluster_extraction.extract(cluster_indices);
+
+    // Generate all the individual cluster point clouds
+    std::vector<PointCloud::Ptr> clusters;
+    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it) {
+        PointCloud::Ptr cluster(new PointCloud);
+
+        // For every list of indices, add all the points to a point cloud
+        for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit) {
+            cluster->points.push_back(cloud_in->points[*pit]);
+        }
+
+        cluster->width = cluster->points.size();
+        cluster->height = 1;
+        cluster->is_dense = true;
+
+        clusters.push_back(cluster);
+    }
+
+    // If we have exactly two clusters one will be the object and one will be the stick.
+    // Look at which object is higher up to figure out which is which.
+    if (clusters.size() == 2) {
+        // Compute the centroids for both clusters to find out where they are located
+        Eigen::Vector4f first_centroid(Eigen::Vector4f::Zero());
+        pcl::compute3DCentroid(*clusters.at(0), first_centroid);
+
+        Eigen::Vector4f second_centroid(Eigen::Vector4f::Zero());
+        pcl::compute3DCentroid(*clusters.at(1), second_centroid);
+
+        // Set the correct output cloud based on the x (height) value of the centroids
+        if (first_centroid(0, 0) > second_centroid(0, 0)) {
+            *cloud_out = *clusters.at(1);
+        } else {
+            *cloud_out = *clusters.at(0);
+        }
+
+        return true;
+    } else {
+        // We can't figure out where the stick is by clustering, perform a simple pass through filter instead
+        pcl::PassThrough<pcl::PointXYZ> pt_filter;
+        pt_filter.setInputCloud(cloud_in);
+        pt_filter.setFilterFieldName("x");
+        pt_filter.setFilterLimits(100, 510);
+        pt_filter.setFilterLimitsNegative(false);
+        pt_filter.filter(*cloud_out);
+
+        return false;
+    }
+}
+
+bool stick(PointCloud::ConstPtr cloud_in, PointCloud::Ptr cloud_out)
+{
+    // Create the KdTree object for the search method of the extraction
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr search_tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    search_tree->setInputCloud(cloud_in);
+
+    // Create the object for extracting cluster in cloud_in
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<pcl::PointXYZ> cluster_extraction;
+    cluster_extraction.setInputCloud(cloud_in);
+
+    // Set the maximum distance between two points in a cluster to 4 mm
+    cluster_extraction.setClusterTolerance(4.0);
+
+    // Set a cluster to be between 10 and 25000 points
+    cluster_extraction.setMinClusterSize(10);
+    cluster_extraction.setMaxClusterSize(25000);
+
+    // Perform the euclidean cluster extraction algorithm
+    cluster_extraction.setSearchMethod(search_tree);
+    cluster_extraction.extract(cluster_indices);
+
+    // Generate all the individual cluster point clouds
+    std::vector<PointCloud::Ptr> clusters;
+    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it) {
+        PointCloud::Ptr cluster(new PointCloud);
+
+        // For every list of indices, add all the points to a point cloud
+        for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit) {
+            cluster->points.push_back(cloud_in->points[*pit]);
+        }
+
+        cluster->width = cluster->points.size();
+        cluster->height = 1;
+        cluster->is_dense = true;
+
+        clusters.push_back(cluster);
+    }
+
+    // If we have exactly two clusters one will be the object and one will be the stick.
+    // Look at which object is higher up to figure out which is which.
+    if (clusters.size() == 2) {
+        // Compute the centroids for both clusters to find out where they are located
+        Eigen::Vector4f first_centroid(Eigen::Vector4f::Zero());
+        pcl::compute3DCentroid(*clusters.at(0), first_centroid);
+
+        Eigen::Vector4f second_centroid(Eigen::Vector4f::Zero());
+        pcl::compute3DCentroid(*clusters.at(1), second_centroid);
+
+        // Set the correct output cloud based on the x (height) value of the centroids
+        if (first_centroid(0, 0) < second_centroid(0, 0)) {
+            *cloud_out = *clusters.at(1);
+        } else {
+            *cloud_out = *clusters.at(0);
+        }
+
+        return true;
+    } else {
+        // We can't figure out where the stick is by clustering, perform a simple pass through filter instead
+        pcl::PassThrough<pcl::PointXYZ> pt_filter;
+        pt_filter.setInputCloud(cloud_in);
+        pt_filter.setFilterFieldName("x");
+        pt_filter.setFilterLimits(100, 510);
+        pt_filter.setFilterLimitsNegative(false);
+        pt_filter.filter(*cloud_out);
+
+        return false;
+    }
+}
+
+void filter(PointCloud::ConstPtr cloud_in, PointCloud::Ptr cloud_out, int rotation)
 {
     // Use a pass through filter to remove all points outside of specific coordinates
     pcl::PassThrough<pcl::PointXYZ> pt_filter;
     pt_filter.setInputCloud(cloud_in);
 
-    // Filter on the x axis
-    // This will remove the stick the object is attached to
+    // Do initial rough filtering on the x axis to remove noise data
     pt_filter.setFilterFieldName("x");
-    pt_filter.setFilterLimits(528, 568);
+    pt_filter.setFilterLimits(100, 568);
     pt_filter.setFilterLimitsNegative(false);
     pt_filter.filter(*cloud_out);
 
@@ -65,6 +200,8 @@ filter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in,
     outlier_filter.setMinNeighborsInRadius(2);
     outlier_filter.filter(*cloud_out);
 
+    // Remove the stick the object is attached to
+    remove_stick(cloud_out, cloud_out);
 
     // Translate the object to move the center of the object to the origin (approximately).
     // This works but should be done in a better way. Right now these values
@@ -89,10 +226,10 @@ filter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in,
     return;
 }
 
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-
-int main(int argc, char **argv) {
-    PointCloud::Ptr cloud(new PointCloud), cloud_tf_1(new PointCloud);
+int main(int argc, char **argv)
+{
+    PointCloud::Ptr cloud_in(new PointCloud), cloud_out(new PointCloud),
+                    cloud_in2(new PointCloud);
 
     if (std::string(argv[1]) == "all") {
         int degs[] = {0, 45, 90, 135, 180, 225, 270, 315};
@@ -102,15 +239,15 @@ int main(int argc, char **argv) {
             ss << "bridge/bridge-" << degs[i] << ".pcd";
             std::cout << "Loading file " << ss.str() << std::endl;
 
-            if (pcl::io::loadPCDFile(ss.str(), *cloud) == -1) {
+            if (pcl::io::loadPCDFile(ss.str(), *cloud_in) == -1) {
                 PCL_ERROR ("Couldn't read cloud file! \n");
                 return -1;
             }
             std::stringstream ss2;
             ss2 << "sticks/bridge-" << degs[i] << ".pcd";
 
-            filter(cloud, cloud_tf_1, degs[i]);
-            pcl::io::savePCDFile(ss2.str(), *cloud_tf_1);
+            filter(cloud_in, cloud_out, degs[i]);
+            pcl::io::savePCDFile(ss2.str(), *cloud_out);
         }
 
         return 0;
@@ -118,118 +255,107 @@ int main(int argc, char **argv) {
 
     std::cout << "Loading file " << argv[1] << std::endl;
 
-    if (pcl::io::loadPCDFile(argv[1], *cloud) == -1) {
+    if (pcl::io::loadPCDFile(argv[1], *cloud_in) == -1) {
+        PCL_ERROR("Couldn't read cloud file! \n");
+        return -1;
+    }
+
+    if (pcl::io::loadPCDFile(argv[2], *cloud_in2) == -1) {
         PCL_ERROR ("Couldn't read cloud file! \n");
         return -1;
     }
 
-    float scale = 0.001;
-    Eigen::Affine3f scale_transform(Eigen::Affine3f::Identity());
-    scale_transform.scale(Eigen::Vector3f(scale, scale, scale));
-    pcl::transformPointCloud(*cloud, *cloud, scale_transform);
-
     pcl::visualization::PCLVisualizer viewer;
-    viewer.addCoordinateSystem(0.01);
+    viewer.addCoordinateSystem(10);
     //viewer.addPointCloud(cloud);
 
-    PointCloud::Ptr cloud_f(new PointCloud);
-
-
-    std::cout << "PointCloud before filtering has: " << cloud->points.size () << " data points." << std::endl; //*
-
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-    *cloud_filtered = *cloud;
-
-
-    // Create the filtering object: downsample the dataset using a leaf size of 1cm
-    pcl::VoxelGrid<pcl::PointXYZ> vg;
-    //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-    vg.setInputCloud (cloud);
-    float leaf_size = 0.001f;
-    vg.setLeafSize (leaf_size, leaf_size, leaf_size);
-    //vg.filter (*cloud_filtered);
-    std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl;
-    //viewer.addPointCloud(cloud_filtered, "cloud_filtered");
-
-    /*
-    // Create the segmentation object for the planar model and set all the parameters
-    pcl::SACSegmentation<pcl::PointXYZ> seg;
-    pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_plane (new pcl::PointCloud<pcl::PointXYZ> ());
-    pcl::PCDWriter writer;
-    seg.setOptimizeCoefficients (true);
-    seg.setModelType (pcl::SACMODEL_PLANE);
-    seg.setMethodType (pcl::SAC_RANSAC);
-    seg.setMaxIterations (100);
-    seg.setDistanceThreshold (0.005);
-
-    int i=0, nr_points = (int) cloud_filtered->points.size ();
-    while (cloud_filtered->points.size () > 0.3 * nr_points)
-    {
-        // Segment the largest planar component from the remaining cloud
-        seg.setInputCloud (cloud_filtered);
-        seg.segment (*inliers, *coefficients);
-        if (inliers->indices.size () == 0)
-        {
-            std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
-            break;
-        }
-
-        // Extract the planar inliers from the input cloud
-        pcl::ExtractIndices<pcl::PointXYZ> extract;
-        extract.setInputCloud (cloud_filtered);
-        extract.setIndices (inliers);
-        extract.setNegative (false);
-
-        // Get the points associated with the planar surface
-        extract.filter (*cloud_plane);
-        std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
-
-        // Remove the planar inliers, extract the rest
-        extract.setNegative (true);
-        extract.filter (*cloud_f);
-        *cloud_filtered = *cloud_f;
+    if (!stick(cloud_in, cloud_out)) {
+        PCL_ERROR("Couldn't generate stick \n");
+        return -1;
     }
-    */
 
-    // Creating the KdTree object for the search method of the extraction
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-    tree->setInputCloud (cloud_filtered);
+    PointCloud::Ptr stick1(new PointCloud);
+    stick(cloud_in, stick1);
+    Eigen::Vector4f stick_centroid(Eigen::Vector4f::Zero());
+    pcl::compute3DCentroid(*stick1, stick_centroid);
+    std::cout << stick_centroid.head<3>() << std::endl;
 
-    std::vector<pcl::PointIndices> cluster_indices;
-    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-    ec.setClusterTolerance (0.004);
-    ec.setMinClusterSize (40);
-    ec.setMaxClusterSize (25000);
-    ec.setSearchMethod (tree);
-    ec.setInputCloud (cloud_filtered);
-    ec.extract (cluster_indices);
+    Eigen::Affine3f translation_transform(Eigen::Affine3f::Identity());
+    translation_transform.translation() << 0.0, -stick_centroid(1, 0), -stick_centroid(2, 0);
+    pcl::transformPointCloud(*cloud_in, *cloud_in, translation_transform);
 
-    int j = 0;
-    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
-    {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
-        for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
-            cloud_cluster->points.push_back (cloud_filtered->points[*pit]); //*
-        cloud_cluster->width = cloud_cluster->points.size ();
-        cloud_cluster->height = 1;
-        cloud_cluster->is_dense = true;
 
-        std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
-        std::stringstream ss;
-        ss << "cloud_cluster_" << j << ".pcd";
-        pcl::io::savePCDFile(ss.str(), *cloud_cluster);
+    PointCloud::Ptr stick2(new PointCloud);
+    stick(cloud_in2, stick2);
+    Eigen::Vector4f stick2_centroid(Eigen::Vector4f::Zero());
+    pcl::compute3DCentroid(*stick2, stick2_centroid);
+    std::cout << stick2_centroid.head<3>() << std::endl;
 
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color(cloud_cluster, rand()%255, rand()%255, rand()%255);
-        viewer.addPointCloud(cloud_cluster, color, ss.str());
-        //writer.write<pcl::PointXYZ> (ss.str (), *cloud_cluster, false); //*
-        j++;
+    Eigen::Affine3f translation2_transform(Eigen::Affine3f::Identity());
+    translation2_transform.translation() << 0.0, -stick2_centroid(1, 0), -stick2_centroid(2, 0);
+    pcl::transformPointCloud(*cloud_in2, *cloud_in2, translation2_transform);
+
+
+    //viewer.addPointCloud(cloud_in, "cloud_in");
+    //viewer.addPointCloud(cloud_in2, "cloud_in2");
+
+    remove_stick(cloud_in, cloud_in);
+    remove_stick(cloud_in2, cloud_in2);
+
+    std::cout << "Downsampling" << std::endl;
+    float leaf_size = 1.5f;
+    // Create the filtering object
+    pcl::VoxelGrid<pcl::PointXYZ> sor;
+    sor.setInputCloud(cloud_in);
+    sor.setLeafSize(leaf_size, leaf_size, leaf_size);
+    sor.filter(*cloud_in);
+
+    // Create the filtering object
+    pcl::VoxelGrid<pcl::PointXYZ> sor2;
+    sor2.setInputCloud(cloud_in2);
+    sor2.setLeafSize(leaf_size, leaf_size, leaf_size);
+    sor2.filter(*cloud_in2);
+
+
+
+    pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+
+    // Parameters for the ICP algorithm
+    icp.setInputSource(cloud_in2);
+    icp.setInputTarget(cloud_in);
+    icp.setMaximumIterations(100);
+    icp.setTransformationEpsilon(1e-4);
+    icp.setMaxCorrespondenceDistance(5);
+    icp.setEuclideanFitnessEpsilon(0.1);
+    icp.setRANSACOutlierRejectionThreshold(5);
+
+    std::cout << "Performing ICP" << std::endl;
+    icp.align(*cloud_in2);
+
+    if (icp.hasConverged()) {
+        std::cout << "ICP converged." << std::endl
+                  << "The score is " << icp.getFitnessScore() << std::endl;
+        std::cout << "Transformation matrix:" << std::endl;
+        std::cout << icp.getFinalTransformation() << std::endl;
     }
-    std::cout << "Number of clusters: " << j << std::endl;
+    else std::cout << "ICP did not converge." << std::endl;
 
-    //viewer.addPointCloud(cloud_out, "cloud_out");
+    pcl::transformPointCloud(*cloud_in2, *cloud_in2, icp.getFinalTransformation());
+
+    PointCloud::Ptr final_cloud(new PointCloud);
+    *final_cloud = *cloud_in + *cloud_in2;
+
+    std::stringstream ss;
+    ss << "gicp/" << argv[1];
+    std::cout << "Saving file " << ss.str() << std::endl;
+    pcl::io::savePCDFileASCII (ss.str(), *final_cloud);
+
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_in_color(cloud_in, 200, 25, 25);
+    viewer.addPointCloud(cloud_in, cloud_in_color, "cl_in");
+
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_in2_color(cloud_in2, 25, 200, 25);
+    viewer.addPointCloud(cloud_in2, cloud_in2_color, "cl_in2");
+
     viewer.spin();
 
     return 0;
